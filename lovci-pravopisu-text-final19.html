@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Lovci pravopisu – text</title>
+<style>
+:root {
+  --bg1:#111827; --bg2:#1e293b; --card:#fff7ed; --ink:#1f2937;
+  --accent:#f97316; --accent2:#facc15; --good:#16a34a; --bad:#dc2626;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; min-height:100vh; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #334155 0, var(--bg1) 48%, #020617 100%);
+  color:white; display:flex; align-items:center; justify-content:center; padding:14px;
+}
+.app {
+  width:min(760px, 100%); min-height:min(920px, 100vh); display:flex; flex-direction:column; gap:12px;
+}
+.header { text-align:center; padding:8px 4px 0; }
+h1 { margin:0; font-size:clamp(28px, 7vw, 48px); letter-spacing:.5px; }
+.subtitle { color:#fde68a; font-weight:700; margin-top:4px; font-size:15px; }
+.panel {
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.16);
+  border-radius:24px; padding:14px; box-shadow:0 18px 50px rgba(0,0,0,.35);
+}
+.menu {
+  flex:1; display:flex; flex-direction:column; justify-content:center; gap:16px;
+}
+.bigbtn {
+  border:0; border-radius:22px; padding:18px 16px; font-size:clamp(22px, 6vw, 34px);
+  font-weight:900; color:#111827; background:linear-gradient(135deg,#fde68a,#fb923c);
+  box-shadow:0 10px 0 #9a3412, 0 18px 35px rgba(0,0,0,.35); cursor:pointer;
+}
+.bigbtn:active { transform:translateY(4px); box-shadow:0 6px 0 #9a3412; }
+.smallbtn {
+  border:0; border-radius:15px; padding:12px 14px; font-weight:900; font-size:16px;
+  background:#e5e7eb; color:#111827; cursor:pointer;
+}
+.gameTop { display:flex; justify-content:space-between; align-items:center; gap:8px; font-weight:900; }
+.badge { background:#0f172a; color:#fde68a; border:1px solid rgba(255,255,255,.15); padding:8px 10px; border-radius:999px; }
+.textbox {
+  background:var(--card); color:var(--ink); border-radius:22px; padding:18px; line-height:1.43;
+  font-size:clamp(18px, 4.8vw, 27px); font-weight:650; box-shadow:inset 0 0 0 3px rgba(249,115,22,.35);
+}
+mark.badword, .word.badword, .badword {
+  background:#ef4444 !important;
+  color:#ffffff !important;
+  padding:0 .18em;
+  border-radius:.28em;
+  box-shadow:0 0 0 3px #7f1d1d inset, 0 0 14px rgba(239,68,68,.85);
+  font-weight:1000;
+}
+.prompt { text-align:center; font-weight:900; color:#fde68a; font-size:18px; margin-top:4px; }
+.answerRow { display:flex; gap:10px; align-items:center; }
+input {
+  width:100%; border:3px solid transparent; border-radius:18px; padding:15px 14px;
+  font-size:clamp(22px, 6vw, 32px); font-weight:900; text-align:center; outline:none;
+}
+input.bad { border-color:var(--bad); background:#fee2e2; color:#7f1d1d; }
+input.good { border-color:var(--good); background:#dcfce7; color:#14532d; }
+.check {
+  min-width:84px; border:0; border-radius:18px; padding:15px 12px; font-size:22px; font-weight:1000;
+  background:linear-gradient(135deg,#86efac,#22c55e); color:#052e16; cursor:pointer;
+}
+.feedback {
+  min-height:58px; display:flex; align-items:center; justify-content:center; text-align:center;
+  font-weight:1000; font-size:clamp(25px,7vw,42px);
+}
+.feedback.good { color:#86efac; }
+.feedback.bad { color:#fecaca; }
+.hint { font-size:16px; text-align:center; color:#fde68a; font-weight:800; min-height:24px; }
+.end {
+  display:flex; flex:1; flex-direction:column; justify-content:center; align-items:center; text-align:center; gap:20px;
+}
+.grade { font-size:clamp(44px,13vw,92px); font-weight:1000; color:#fde68a; text-shadow:0 6px 0 #7c2d12; }
+.hidden { display:none !important; }
+@media (max-width: 420px) {
+  body { padding:8px; align-items:flex-start; }
+  .app { gap:8px; }
+  .panel { padding:10px; border-radius:18px; }
+  .textbox { padding:13px; font-size:18px; line-height:1.35; }
+  .answerRow { flex-direction:column; }
+  .check { width:100%; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Lovci pravopisu</h1>
+    <div class="subtitle">Zapiš chybné slovo správně</div>
+  </div>
+
+  <section id="menu" class="panel menu">
+    <button class="bigbtn" onclick="startGame('training')">TRÉNINK</button>
+    <button class="bigbtn" onclick="startGame('sharp')">NAOSTRO</button>
+    <div class="hint">V tréninku uvidíš správnou podobu. V režimu NAOSTRO potřebuješ 10 správných odpovědí.</div>
+  </section>
+
+  <section id="game" class="panel hidden">
+    <div class="gameTop">
+      <div class="badge" id="modeBadge">TRÉNINK</div>
+      <div class="badge">Čas: <span id="timer">30</span> s</div>
+      <div class="badge">Série: <span id="streak">0</span>/10</div>
+      <div id="topResult" class="topResult"></div>
+      <button class="smallbtn" onclick="backToMenu()">Menu</button>
+    </div>
+    <div class="prompt">Zapiš chybné slovo správně.</div>
+    <div id="text" class="textbox"></div>
+    <div class="answerRow">
+      <input id="answer" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="oprav chybné slovo" />
+      <button id="checkBtn" class="check" onclick="mainButton()">OK</button>
+    </div>
+    <div id="feedback" class="feedback"></div>
+    <div id="hint" class="hint"></div>
+    <button id="nextBtn" class="smallbtn hidden" onclick="nextQuestion()" style="display:none">DALŠÍ</button>
+  </section>
+
+  <section id="end" class="panel end hidden">
+    <div class="grade">MÁŠ JEDNIČKU!</div>
+    <button class="bigbtn" onclick="startGame('sharp')">Znovu NAOSTRO</button>
+    <button class="smallbtn" onclick="backToMenu()">Zpět do menu</button>
+  </section>
+</div>
+
+<script>
+const DATA = [
+  {
+    "text": "Během školního výletu do Krkonoš jsme navštívili několik horských oblastí, kde jsme pozorovali místní přírodu a její proměny. Průvodce nás upozornil na vzácné druhy rostlin a živočichů, které se zde vyskytují a jsou chráněny zákonem. Někeří studenti si zapisovali poznámky, jiní se snažili vše zapamatovat a porozumět souvislostem. Po návratu jsme diskutovali o tom, co nás nejvíce zaujalo a jaký význam má ochrana přírody pro budoucí generace.",
+    "answer": "někeří",
+    "correct": "někteří",
+    "badIndex": 234,
+    "badLength": 6
+  },
+  {
+    "text": "Na hodině literatury jsme se zabývali tvorbou Karla Čapka a jeho přínosem pro českou kulturu i světovou literaturu. Učitel nám vysvětlil základní znaky jeho stylu a upozornil na význam jednotlivých děl, která jsme četli. Někteří studenti si vedli podrobné poznámky, jiní se snažili aktivně zapojit do dyskuze a vyjádřit své názory na probírané texty. V závěru hodiny jsme shrnuli hlavní myšlenky a zhodnotili přínos autora pro současnost.",
+    "answer": "dyskuze",
+    "correct": "diskuse",
+    "badIndex": 301,
+    "badLength": 7
+  },
+  {
+    "text": "Při návštěvě Pražského hradu jsme obdivovali architekturu katedrály svatého Víta a poslouchali výklad zkušeného průvodce. Ten nám vysvětlil historický význam jednotlivých částí stavby a upozornil na zajímavé detaily, kterých bychom si jinak nevšimli. Někteří studenti si pořizovali fotografie, jiní se snažili vnímat atmosféru místa bez použití techniky. Po skončení prohlídky jsme si uvjedomili, jak důležitou roli hraje historie v našem každodenním životě.",
+    "answer": "uvjedomili",
+    "correct": "uvědomili",
+    "badIndex": 385,
+    "badLength": 10
+  },
+  {
+    "text": "Během laboratorního cvičení jsme prováděli pokusy, které měly ověřit naše teoretické znalosti z chemie a fiziky. Učitel nás upozornil na nutnost dodržovat bezpečnostní pravidla a pracovat přesně podle zadání, aby nedošlo k chybám. Někteří studenti se zaměřili na detaily měření, jiní se snažili pochopit princip celého experimentu a jeho praktické využití. Výsledky jsme následně porovnali a diskutovali o jejich významu i možných odchylkách.",
+    "answer": "fiziky",
+    "correct": "fyziky",
+    "badIndex": 105,
+    "badLength": 6
+  },
+  {
+    "text": "Na začátku projektu jsme si rozdělili jednotlivé úkoly a stanovili si časový plán, který jsme se snažili dodržet. Každý člen týmu měl zpracovat určitou část tématu a následně ji prezentovat ostatním spolužákům. Spolupráce byla důležitá pro úspěšné dokončení projektu a umožnila nám lépe porozumnět probírané problematice. Na závěr jsme své výsledky shrnuli, zhodnotili průběh práce a navrhli možné způsoby zlepšení pro další podobné úkoly.",
+    "answer": "porozumnět",
+    "correct": "porozumět",
+    "badIndex": 287,
+    "badLength": 10
+  },
+  {
+    "text": "Během exkurze do výrobního závodu jsme sledovali celý proces výroby od počáteční fáze až po finální kontrolu výrobků. Pracovníci nám vysvětlili jednotlivé kroky a upozornili na nutnost přestnosti při práci. Někteří studenti se ptali na detaily, jiní se snažili pochopit celkový princip výroby a její organizaci. Na závěr jsme diskutovali o tom, jaký význam má technický pokrok pro současnou společnost a její další rozvoj.",
+    "answer": "přestnosti",
+    "correct": "přesnosti",
+    "badIndex": 185,
+    "badLength": 10
+  },
+  {
+    "text": "Při čtení odborného textu jsme narazili na několik neznámých pojmů, které jsme si museli vyhledat ve slovníku nebo na internetu. Učitel nám vysvětlil jejich význam a uvedl příklady z praxe, které nám pomohli lépe porozumět textu. Někteří studenti si zapisovali poznámky, jiní se snažili vše zapamatovat bez nich. Při následném opakování jsme zjistili, že systematická práce přináší lepší výsledky než pouhé memorování informací.",
+    "answer": "pomohli",
+    "correct": "pomohly",
+    "badIndex": 200,
+    "badLength": 7
+  },
+  {
+    "text": "Na hodině dějepisu jsme se věnovali významným událostem, které ovlivnily vývoj evropské společnosti v minulých stoletích. Učitel nám vysvětlil souvislosti mezi jednotlivýmy obdobími a upozornil na důležité historické mezníky. Někteří studenti si zapisovali poznámky, jiní se snažili vnímat výklad bez nich. Diskuse, která následovala, nám pomohla lépe pochopit probírané téma a uvědomit si jeho význam pro současnost.",
+    "answer": "jednotlivýmy",
+    "correct": "jednotlivými",
+    "badIndex": 160,
+    "badLength": 12
+  },
+  {
+    "text": "Během výuky jsme pracovali s různými zdroji informací a učili se je kriticky hodnotit a správně interpretovat. Učitel nás upozornil na časté chyby, kterých se studenti dopouštějí při práci s textem. Někteří si poznámky zapisovali, jiní se snažili vše zapamatovat bez nich. Postupně jsme si uvjedomili, že důležité není jen množství informací, ale také schopnost je správně využít v praxi.",
+    "answer": "uvjedomili",
+    "correct": "uvědomili",
+    "badIndex": 290,
+    "badLength": 10
+  },
+  {
+    "text": "Při návštěvě muzea jsme se dozvěděli mnoho zajímavého o historii regijonu a životě našich předků. Průvodce nám ukázal exponáty, které dokumentovaly každodenní činnosti i významné události. Někteří studenti si pořizovali fotografie, jiní se snažili vnímat atmosféru místa bez použití techniky. Po návratu do školy jsme diskutovali o tom, co nás nejvíce zaujalo a jaký význam mají tyto památky pro dnešní společnost.",
+    "answer": "regijonu",
+    "correct": "regionu",
+    "badIndex": 65,
+    "badLength": 8
+  },
+  {
+    "text": "Na hodině biologie jsme probírali stavbu lidského těla a funkci jednotlivých orgánů a soustav. Učitel nám vysvětlil, jak spolu jednotlivé části organismu spolupracují a jak důležitá je jejich rovnováha. Někteří studenti si zapisovali poznámky, jiný se snažili pochopit výklad bez nich. Praktické ukázky nám pomohly lépe porozumět probíranému učivu a uvědomit si význam zdravého životního stylu.",
+    "answer": "jiný",
+    "correct": "jiní",
+    "badIndex": 244,
+    "badLength": 4
+  },
+  {
+    "text": "Během výletu jsme se pohybovali v lese, kde bylo nutné dodržovat vyznačené stezky a dbát na bezpečnost. Průvodce nás upozornil na nebezpečí uklouznutí a vyzval nás k opatrnosti při pohybu v náročném terénu. Někteří studenti jeho pokyny dodržovali, jiní se snažili jít vlasní cestou. Nakonec jsme se všichni sešli na smluveném místě a pokračovali společně dál podle původního plánu.",
+    "answer": "vlasní",
+    "correct": "vlastní",
+    "badIndex": 268,
+    "badLength": 6
+  },
+  {
+    "text": "Na přednášce o psychologii jsme se zabívali lidským chováním v různých situacích a jeho příčinami. Učitel nám vysvětlil základní principy a uvedl několik příkladů z praxe, které nám pomohly lépe pochopit probírané téma. Diskuse, která následovala, byla velmi přínosná a umožnila nám vyjádřit vlastní názory. Někteří studenti si zapisovali poznámky, jiní se snažili aktivně zapojit do rozhovoru.",
+    "answer": "zabívali",
+    "correct": "zabývali",
+    "badIndex": 35,
+    "badLength": 8
+  },
+  {
+    "text": "Při práci na projektu jsme spolupracovali ve skupinách a snažili se rozdělit si úkoly co nejefektivněji. Každý člen týmu měl svou roly a odpovědnost, kterou musel splnit v daném termínu. Výsledky jsme následně prezentovali před třídou a diskutovali o nich. Tato zkušenost nám pomohla lépe pochopit význam spolupráce a naučila nás respektovat názory ostatních členů týmu.",
+    "answer": "roly",
+    "correct": "roli",
+    "badIndex": 130,
+    "badLength": 4
+  },
+  {
+    "text": "Během laboratorního cvičení jsme ovjeřovali správnost teoretických poznatků získaných při výuce. Učitel nás upozornil na nutnost přesného měření a pečlivého zapisování výsledků, aby nedošlo k nepřesnostem. Někteří studenti pracovali samostatně, jiní spolupracovali ve dvojicích. Na závěr jsme porovnali výsledky a diskutovali o tom, proč se v některých případech lišily od očekávaných hodnot.",
+    "answer": "ovjeřovali",
+    "correct": "ověřovali",
+    "badIndex": 33,
+    "badLength": 10
+  },
+  {
+    "text": "Na hodině zeměpisu jsme pracovali s mapamy a učili se orientovat v terénu pomocí různých pomůcek. Učitel nám vysvětlil, jak správně číst mapové značky a určovat polohu jednotlivých míst. Praktická cvičení nám pomohla lépe pochopit teorii a uvědomit si její význam pro každodenní život. Někteří studenti si zapisovali poznámky, jiní se snažili vše zapamatovat bez nich.",
+    "answer": "mapamy",
+    "correct": "mapami",
+    "badIndex": 36,
+    "badLength": 6
+  },
+  {
+    "text": "Při přípravě na test jsme si opakovali základní pojmy a snažili se je aplikovat v praxi při řešení úloh. Učitel nám doporučil několik cvičení, která nám měla pomoci lépe porozumnět látce. Společná práce byla pro mnohé přínosná a umožnila nám sdílet zkušenosti. Na závěr jsme si shrnuli nejdůležitější poznatky a připravili se na nadcházející testování.",
+    "answer": "porozumnět",
+    "correct": "porozumět",
+    "badIndex": 170,
+    "badLength": 10
+  },
+  {
+    "text": "Během letní dovolené u moře jsme trávili většinu času na pláži, kde jsme se koupali a pozorovali okolní krajinu. Ráno jsme vyráželi na krátké procházky podél pobřeží a zbírali mušle, které vyplavilo moře. Večer jsme seděli na terase a sledovali západ slunce nad hladinou. Někteří z nás si zapisovali své zážitky do deníku, jiní se snažili vše uchovat pouze ve vzpomínkách, které jim připomínaly klidnou atmosféru celého místa.",
+    "answer": "zbírali",
+    "correct": "sbírali",
+    "badIndex": 168,
+    "badLength": 7
+  },
+  {
+    "text": "Při sledování dokumentárního filmu o vesmíru jsme si uvědomili, jak málo toho o něm ve skutečnosti víme. Film ukazoval vzdálené galaxie, vznik hvězd i zánik planetárních soustav. Některé záběry byly natolik působivé, že jsme si je chtěli pustit znovu. Po skončení projekce jsme diskutovali o tom, jaký víznam má výzkum vesmíru pro lidstvo a jaké otázky zůstávají stále nezodpovězené i přes pokroky moderní vědy a technologií.",
+    "answer": "víznam",
+    "correct": "význam",
+    "badIndex": 302,
+    "badLength": 6
+  },
+  {
+    "text": "Během sportovního dne jsme se zúčastnili několika disciplín, které prověřily naši fyzickou zdatnost i schopnost spolupracovat v týmu. Někteří studenti se zaměřili na běh, jiní dávali přednost míčovým hrám nebo skoku do dálky. Atmosféra byla přátelská a všichni se snažili podat co nejlepší výkon. Na závěr jsme si společně vyhodnotili výsledky a ocenili nejen vítěze, ale i ty, kteří se výrazně zlepšili oproti minulím výkonům.",
+    "answer": "minulím",
+    "correct": "minulým",
+    "badIndex": 411,
+    "badLength": 7
+  },
+  {
+    "text": "Při přípravě slavnostního programu jsme se snažili zajistit, aby vše proběhlo bez problémů a včas. Každý měl na starosti určitou část organizace, od výzdoby až po hudební doprovod. Někteří studenti připravovali scénář, jiní se věnovali technickému zajištění celé akce. Díky dobré spolupráci se nám podařilo vytvořit příjemnou atmosféru, kterou ocenili nejen učitelé, ale i ostatní účastníci, kteří si celý večer užily.",
+    "answer": "užily",
+    "correct": "užili",
+    "badIndex": 412,
+    "badLength": 5
+  },
+  {
+    "text": "Během návštěvy zoologické zahrady jsme měli možnost pozorovat různé druhy zvířat z celého světa. Průvodce nám vysvětlil, jak se jednotlivé druhy přispůsobily svému prostředí a jaké mají nároky na chov. Některá zvířata byla velmi aktivní, jiná odpočívala ve stínu. Nejvíce nás zaujali velcí savci, kteří se pohybovali ve výbězích a působili majestátním dojmem na všechny návštěvníky, kteří je obdivovali.",
+    "answer": "přispůsobily",
+    "correct": "přizpůsobily",
+    "badIndex": 145,
+    "badLength": 12
+  },
+  {
+    "text": "Při sledování divadelního přectavení jsme se snažili vnímat nejen děj, ale i způsob, jakým herci vyjadřovali emoce. Scéna byla jednoduchá, ale velmi účinná a podtrhovala atmosféru celého příběhu. Někteří diváci se soustředili na dialogy, jiní na pohyb herců a jejich výraz. Po skončení představení jsme diskutovali o tom, jak na nás jednotlivé scény působily a jaký dojem v nás zanechaly, což vedlo k zajímavé výměně názorů.",
+    "answer": "přectavení",
+    "correct": "představení",
+    "badIndex": 26,
+    "badLength": 10
+  },
+  {
+    "text": "Během výpravy do hor jsme si uvědomili, jak důležité je správné vybavení a dobrá fyzická kondice. Terén byl náročný a počasí se rychle měnilo, což vyžadovalo neustálou pozornost. Někteří účastníci se unavili dříve, jiní pokračovali bez věčích potíží. Na vrcholu jsme si odpočinuli a vychutnali si výhled do okolní krajiny, který byl odměnou za vynaložené úsilí a překonané obtíže během celé cesty.",
+    "answer": "věčích",
+    "correct": "větších",
+    "badIndex": 236,
+    "badLength": 6
+  },
+  {
+    "text": "Při přípravě jídla jsme se snažili dodržovat recept a správné postupy, které nám zajistily dobrý výsledek. Někteří studenti krájeli zeleninu, jiní připravovali omáčku nebo hlídali vaření. Spolupráce byla důležitá, protože každý měl svou roli a odpovědnost. Na závěr jsme společně ochutnali připravené pokrmi a zhodnotili, co se nám podařilo a co bychom příště mohli udělat lépe při podobné činnosti.",
+    "answer": "pokrmi",
+    "correct": "pokrmy",
+    "badIndex": 301,
+    "badLength": 6
+  },
+  {
+    "text": "Během návštěvy knihovny jsme si vybírali knihy podle vlastních zájmů a doporučení učitele. Někteří studenti hledali dobrodružné příběhy, jiní dávali přednost naučné literatuře. Knihovnice nám poradila, jak se orientovat v katalogu a jak si zprávně vybrat vhodnou knihu. Na závěr jsme si knihy vypůjčili a domluvili se, že o nich budeme později diskutovat a sdílet své čtenářské zážitky s ostatními spolužáky.",
+    "answer": "zprávně",
+    "correct": "správně",
+    "badIndex": 240,
+    "badLength": 7
+  },
+  {
+    "text": "Při sledování sportovního utkání jsme si všimli, jak důležitá je spolupráce mezi jednotlivími hráči. Každý měl svou roli a musel se spolehnout na ostatní členy týmu. Někteří hráči vynikali rychlostí, jiní přesností přihrávek nebo taktickým myšlením. Zápas byl napínavý až do poslední chvíle a rozhodl ho jediný gól, který padl těsně před koncem a přinesl vítězství jednomu z týmů.",
+    "answer": "jednotlivími",
+    "correct": "jednotlivými",
+    "badIndex": 81,
+    "badLength": 12
+  },
+  {
+    "text": "Během prohlídky historického města jsme obdivovali starobylé budovy a úzké uličky, které měly jedinečnou atmosféru. Průvodce nám vysvětlil hystorii jednotlivých památek a upozornil na zajímavé detaily. Někteří turisté si pořizovali fotografie, jiní se snažili vnímat atmosféru místa bez techniky. Na závěr jsme si sedli do malé kavárny a odpočinuli si po dlouhé procházce, která byla velmi příjemná.",
+    "answer": "hystorii",
+    "correct": "historii",
+    "badIndex": 139,
+    "badLength": 8
+  },
+  {
+    "text": "Při sledování přírodovědného pořadu jsme se dozvěděli mnoho zajímavého o životě zvířat v různých částech světa. Pořad ukazoval jejich přizpůsobení prostředí a způsoby, jakými si zajišťují potravu. Některé scény byly velmi napínavé, jiné spíše poučné. Po skončení jsme diskutovali o tom, jakýmy způsoby se zvířata dokážou přizpůsobit náročným podmínkám a jaké strategie při tom využívají.",
+    "answer": "jakýmy",
+    "correct": "jakými",
+    "badIndex": 287,
+    "badLength": 6
+  },
+  {
+    "text": "Během odpolední procházky parkem jsme si všimli, jak se příroda postupně mění s příchodem podzimu. Listy stromů získávaly různé odstíny barev a padali na zem, kde vytvářely pestrý koberec. Někteří lidé si tento pohled fotografovali, jiní se jen tiše procházeli a vnímali atmosféru. My jsme se zastavili na lavičce a pozorovali okolí, které působilo klidným a vyrovnaným dojmem.",
+    "answer": "padali",
+    "correct": "padaly",
+    "badIndex": 144,
+    "badLength": 6
+  }
+];
+
+let deck = [];
+let index = 0;
+let current = null;
+let mode = "training";
+let locked = false;
+let streak = 0;
+let timeLeft = 30;
+let timerId = null;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function norm(s) {
+  return (s || "").trim().toLowerCase().replace(/[.,;:!?„“"()]/g, "");
+}
+
+function startGame(selectedMode) {
+  mode = selectedMode;
+  deck = shuffle(DATA);
+  index = 0;
+  streak = 0;
+  document.getElementById("menu").classList.add("hidden");
+  document.getElementById("end").classList.add("hidden");
+  document.getElementById("game").classList.remove("hidden");
+  document.getElementById("modeBadge").textContent = mode === "sharp" ? "NAOSTRO" : "TRÉNINK";
+  nextQuestion();
+}
+
+function backToMenu() {
+  stopTimer();
+  document.getElementById("game").classList.add("hidden");
+  document.getElementById("end").classList.add("hidden");
+  document.getElementById("menu").classList.remove("hidden");
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function escapeRegExp(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+
+function renderText(item, reveal=false) {
+  if (!reveal) return escapeHtml(item.text);
+
+  const idx = item.badIndex;
+  const len = item.badLength;
+
+  if (typeof idx !== "number" || idx < 0 || !len) return escapeHtml(item.text);
+
+  const before = escapeHtml(item.text.slice(0, idx));
+  const match = escapeHtml(item.text.slice(idx, idx + len));
+  const after = escapeHtml(item.text.slice(idx + len));
+
+  return before + '<mark class="badword">' + match + '</mark>' + after;
+}
+
+
+function stopTimer() {
+  if (timerId) clearInterval(timerId);
+  timerId = null;
+}
+
+function startTimer() {
+  stopTimer();
+  timeLeft = 30;
+  document.getElementById("timer").textContent = timeLeft;
+  timerId = setInterval(() => {
+    if (locked) return;
+    timeLeft--;
+    document.getElementById("timer").textContent = timeLeft;
+    if (timeLeft <= 0) {
+      stopTimer();
+      timeUp();
+    }
+  }, 1000);
+}
+
+function timeUp() {
+  if (locked) return;
+  locked = true;
+  const input = document.getElementById("answer");
+  input.classList.add("bad");
+  const top = document.getElementById("topResult");
+  top.textContent = "✗"; top.style.fontSize="64px"; top.style.color="#ef4444";
+  top.className = "topResult bad";
+  document.getElementById("text").innerHTML = renderText(current, true);
+  playSound("bad");
+  if (mode === "training") {
+    document.getElementById("hint").textContent = `Čas vypršel. Oprav chybné slovo: ${current.correct}.`;
+  } else {
+    streak = 0;
+    document.getElementById("streak").textContent = streak;
+    document.getElementById("hint").textContent = `Čas vypršel. Správně: ${current.correct}. Série začíná znovu.`;
+  }
+  document.getElementById("checkBtn").textContent = "DALŠÍ";
+}
+
+function nextQuestion() {
+  if (index >= deck.length) deck = shuffle(DATA), index = 0;
+  current = deck[index++];
+  locked = false;
+  document.getElementById("text").innerHTML = renderText(current, false);
+  const input = document.getElementById("answer");
+  document.getElementById("checkBtn").textContent = "OK";
+  input.value = "";
+  input.className = "";
+  document.getElementById("feedback").textContent = "";
+  document.getElementById("feedback").className = "feedback";
+  document.getElementById("hint").textContent = "";
+  document.getElementById("nextBtn").classList.add("hidden");
+  document.getElementById("streak").textContent = streak;
+  const top = document.getElementById("topResult");
+  top.textContent = ""; top.style.fontSize=""; top.style.color="";
+  top.className = "topResult";
+  startTimer();
+  setTimeout(() => input.focus(), 80);
+}
+
+function playSound(type) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    if (type === "good") {
+      osc.frequency.setValueAtTime(660, ctx.currentTime);
+      osc.frequency.setValueAtTime(880, ctx.currentTime + 0.08);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
+      osc.start(); osc.stop(ctx.currentTime + 0.24);
+    } else {
+      osc.frequency.setValueAtTime(180, ctx.currentTime);
+      osc.frequency.setValueAtTime(120, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+      osc.start(); osc.stop(ctx.currentTime + 0.3);
+    }
+  } catch(e) {}
+}
+
+function mainButton() {
+  if (locked) {
+    nextQuestion();
+  } else {
+    checkAnswer();
+  }
+}
+
+function checkAnswer() {
+  if (locked) return;
+  const input = document.getElementById("answer");
+  const val = norm(input.value);
+  const good = val === norm(current.correct);
+  const feedback = document.getElementById("feedback");
+  const hint = document.getElementById("hint");
+  locked = true;
+  stopTimer();
+
+  if (good) {
+    input.classList.add("good");
+    feedback.textContent = "";
+    const top = document.getElementById("topResult");
+    top.textContent = "✓"; top.style.fontSize="64px"; top.style.color="#22c55e";
+    top.className = "topResult good";
+    playSound("good");
+    streak++;
+    document.getElementById("streak").textContent = streak;
+    if (mode === "sharp" && streak >= 10) {
+      setTimeout(() => {
+        document.getElementById("game").classList.add("hidden");
+        document.getElementById("end").classList.remove("hidden");
+      }, 800);
+      return;
+    }
+    setTimeout(nextQuestion, 1100);
+  } else {
+    input.classList.add("bad");
+    feedback.textContent = "";
+    const top = document.getElementById("topResult");
+    top.textContent = "✗"; top.style.fontSize="64px"; top.style.color="#ef4444";
+    top.className = "topResult bad";
+    document.getElementById("text").innerHTML = renderText(current, true);
+    playSound("bad");
+    if (mode === "training") {
+      hint.textContent = `Oprav chybné slovo: ${current.correct}.`;
+    } else {
+      hint.textContent = `Správně: ${current.correct}. Série začíná znovu.`;
+      streak = 0;
+      document.getElementById("streak").textContent = streak;
+    }
+    document.getElementById("checkBtn").textContent = "DALŠÍ";
+  }
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !document.getElementById("game").classList.contains("hidden")) {
+    if (!locked) checkAnswer();
+  }
+});
+
+</script>
+</body>
+</html>
